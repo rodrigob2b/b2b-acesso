@@ -2507,6 +2507,7 @@ pub fn rustdesk_interval(i: Interval) -> ThrottledInterval {
 }
 
 pub fn load_custom_client() {
+    apply_b2b_acesso_brand();
     #[cfg(debug_assertions)]
     if let Ok(data) = std::fs::read_to_string("./custom.txt") {
         read_custom_client(data.trim());
@@ -2526,6 +2527,24 @@ pub fn load_custom_client() {
         };
         read_custom_client(&data.trim());
     }
+}
+
+// B2B Acesso: servidor, chave e painel da B2B Consultiva embutidos; sem atualização automática da RustDesk.
+fn apply_b2b_acesso_brand() {
+    const HOST: &str = "acesso.b2bconsultiva.com";
+    const KEY: &str = "yflG2v7EBqIGS8B630DdxDeg5mP4gWvXtlJannV4rSA=";
+    *config::APP_NAME.write().unwrap() = "B2BAcesso".to_owned();
+    let mut settings = config::OVERWRITE_SETTINGS.write().unwrap();
+    settings.insert(keys::OPTION_CUSTOM_RENDEZVOUS_SERVER.to_owned(), HOST.to_owned());
+    settings.insert(keys::OPTION_RELAY_SERVER.to_owned(), HOST.to_owned());
+    settings.insert(keys::OPTION_API_SERVER.to_owned(), format!("https://{HOST}"));
+    settings.insert(keys::OPTION_KEY.to_owned(), KEY.to_owned());
+    settings.insert(keys::OPTION_ALLOW_AUTO_UPDATE.to_owned(), "N".to_owned());
+    drop(settings);
+    config::OVERWRITE_LOCAL_SETTINGS
+        .write()
+        .unwrap()
+        .insert(keys::OPTION_ENABLE_CHECK_UPDATE.to_owned(), "N".to_owned());
 }
 
 fn read_custom_client_advanced_settings(
