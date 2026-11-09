@@ -2545,6 +2545,12 @@ fn apply_b2b_acesso_brand() {
         .write()
         .unwrap()
         .insert(keys::OPTION_ENABLE_CHECK_UPDATE.to_owned(), "N".to_owned());
+    // Como o TeamViewer: a tela remota abre inteira, ajustada a janela (sem rolar com o mouse).
+    // E so o padrao: o tecnico ainda pode trocar para "Original" na barra da sessao.
+    config::DEFAULT_DISPLAY_SETTINGS
+        .write()
+        .unwrap()
+        .insert(keys::OPTION_VIEW_STYLE.to_owned(), "adaptive".to_owned());
 }
 
 fn read_custom_client_advanced_settings(
