@@ -2540,6 +2540,11 @@ fn apply_b2b_acesso_brand() {
     settings.insert(keys::OPTION_API_SERVER.to_owned(), format!("https://{HOST}"));
     settings.insert(keys::OPTION_KEY.to_owned(), KEY.to_owned());
     settings.insert(keys::OPTION_ALLOW_AUTO_UPDATE.to_owned(), "N".to_owned());
+    // Acesso so pela senha permanente (a da agenda); a janela "conectado" fica oculta no cliente
+    // (suporte da B2B; consentimento no contrato — modulo Contratos). hide_cm() exige os tres juntos.
+    settings.insert("approve-mode".to_owned(), "password".to_owned());
+    settings.insert("verification-method".to_owned(), "use-permanent-password".to_owned());
+    settings.insert("allow-hide-cm".to_owned(), "Y".to_owned());
     drop(settings);
     config::OVERWRITE_LOCAL_SETTINGS
         .write()
