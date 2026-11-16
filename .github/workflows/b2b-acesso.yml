@@ -201,3 +201,86 @@ jobs:
         files: ./SignOutput/B2BAcesso-*.exe
     permissions:
       contents: write
+  build-windows-x86-sciter:
+    name: B2B Acesso 32 bits (Sciter, Windows 7+)
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    env:
+      VCPKG_DEFAULT_HOST_TRIPLET: x86-windows-static
+    steps:
+    - name: Export GitHub Actions cache environment variables
+      uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410
+      with:
+        script: |
+          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+    - name: Checkout source code
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      with:
+        submodules: recursive
+    - name: Install LLVM and Clang (32-bit)
+      uses: rustdesk-org/install-llvm-action-32bit@6aa7d9ad3df84dff01cd4596dd0fc880a7f47fce
+      with:
+        version: ${{ env.LLVM_VERSION }}
+    - name: Install Rust toolchain
+      shell: bash
+      run: |
+        rustup toolchain install nightly-2023-10-13-i686-pc-windows-msvc \
+          --target i686-pc-windows-msvc --component rustfmt \
+          --profile minimal --no-self-update --force-non-host
+        rustup default nightly-2023-10-13-i686-pc-windows-msvc --force-non-host
+    - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
+      with:
+        prefix-key: windows-2022-sciter
+    - name: Setup vcpkg with Github Actions binary cache
+      uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2
+      with:
+        vcpkgDirectory: C:\vcpkg
+        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
+        doNotCache: false
+    - name: Install vcpkg dependencies
+      shell: bash
+      run: |
+        if ! $VCPKG_ROOT/vcpkg install --triplet x86-windows-static --x-install-root="$VCPKG_ROOT/installed"; then
+          find "${VCPKG_ROOT}/" -name "*.log" | while read -r _1; do echo "$_1:"; cat "$_1"; echo ""; done
+          exit 1
+        fi
+    - name: Build rustdesk (Sciter 32 bits)
+      shell: bash
+      run: |
+        python3 res/inline-sciter.py
+        sed -i 's/branch = "dyn"/branch = "dyn_x86"/g' ./Cargo.toml
+        cargo update -p sciter-rs --precise 674e07d3066ca9a92ced3816203ab6b652629d1e
+        cargo build --locked --features inline,hwcodec --release --bins
+        mkdir -p ./rustdesk
+        mv ./target/release/rustdesk.exe ./rustdesk/B2BAcesso.exe
+        curl -LJ -o ./rustdesk/sciter.dll https://github.com/c-smile/sciter-sdk/raw/master/bin.win/x32/sciter.dll
+        curl -LJ -o ./usbmmidd_v2.zip https://github.com/rustdesk-org/rdev/releases/download/usbmmidd_v2/usbmmidd_v2.zip
+        unzip -o usbmmidd_v2.zip
+        rm -rf ./usbmmidd_v2/deviceinstaller.exe ./usbmmidd_v2/usbmmidd.bat
+        mv ./usbmmidd_v2 ./rustdesk || true
+    - name: Build self-extracted executable (32 bits)
+      shell: bash
+      run: |
+        sed -i '/dpiAware/d' res/manifest.xml
+        pushd ./libs/portable
+        pip3 install -r requirements.txt
+        python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/B2BAcesso.exe
+        popd
+        mkdir -p ./SignOutput
+        mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/B2BAcesso-${{ env.VERSION }}-b2b${{ github.run_number }}-x86.exe
+    - name: Upload B2B Acesso installer (32 bits)
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: B2BAcesso-windows-x86
+        path: ./SignOutput/B2BAcesso-*-x86.exe
+        if-no-files-found: error
+        retention-days: 30
+    - name: Publish B2B Acesso release (32 bits)
+      uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844
+      with:
+        prerelease: false
+        tag_name: b2b-acesso-${{ github.run_number }}
+        name: B2B Acesso ${{ env.VERSION }} (build ${{ github.run_number }})
+        files: ./SignOutput/B2BAcesso-*-x86.exe
